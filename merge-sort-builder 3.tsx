@@ -488,7 +488,7 @@ export default function MergeSortBuilder({ assignmentId, maxScore, onComplete }:
           }
         }}
       >
-        <svg className="absolute inset-0 h-full w-full" style={{ pointerEvents: "none" }}>
+        <svg className="absolute inset-0 h-full w-full">
           <defs>
             <marker id="msb-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
               <path d="M0,0 L6,3 L0,6 Z" className="fill-current text-muted-foreground" />
@@ -501,13 +501,17 @@ export default function MergeSortBuilder({ assignmentId, maxScore, onComplete }:
             const stroke =
               status === true ? "#22c55e" : status === false ? "#ef4444" : "currentColor";
             return (
-              <g
-                key={c.id}
-                style={{ pointerEvents: "auto", cursor: "pointer" }}
-                onClick={() => removeConnection(c.id)}
-                className="text-muted-foreground"
-              >
-                <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="transparent" strokeWidth={14} />
+              <g key={c.id} className="text-muted-foreground">
+                <line
+                  x1={p1.x}
+                  y1={p1.y}
+                  x2={p2.x}
+                  y2={p2.y}
+                  stroke="transparent"
+                  strokeWidth={14}
+                  style={{ pointerEvents: "stroke", cursor: "pointer" }}
+                  onClick={() => removeConnection(c.id)}
+                />
                 <line
                   x1={p1.x}
                   y1={p1.y}
@@ -516,6 +520,7 @@ export default function MergeSortBuilder({ assignmentId, maxScore, onComplete }:
                   stroke={stroke}
                   strokeWidth={2.5}
                   markerEnd="url(#msb-arrow)"
+                  style={{ pointerEvents: "none" }}
                 />
               </g>
             );

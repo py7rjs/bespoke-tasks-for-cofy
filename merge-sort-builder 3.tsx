@@ -91,7 +91,7 @@ function buildTree(words: string[]): { rows: BoxData[][]; leafRowIdx: number } {
         // stays aligned on the same row until the whole level is split
         next.push({ id: `b${idCounter++}`, row, size: 1, isRoot: false, words: b.words, parents: [b.id] });
       } else {
-        const half = Math.ceil(b.size / 2);
+        const half = Math.floor(b.size / 2);
         const leftWords = b.words.slice(0, half);
         const rightWords = b.words.slice(half);
         next.push({ id: `b${idCounter++}`, row, size: leftWords.length, isRoot: false, words: leftWords, parents: [b.id] });
@@ -104,32 +104,32 @@ function buildTree(words: string[]): { rows: BoxData[][]; leafRowIdx: number } {
   }
   const leafRowIdx = row - 1; // every box in `current` now has size 1
 
-  // ── Merge phase: combine adjacent boxes back together in sorted order ──
-  while (current.length > 1) {
-    const next: BoxData[] = [];
-    for (let i = 0; i < current.length; i += 2) {
-      if (i + 1 < current.length) {
-        const merged = mergeWords(current[i].words, current[i + 1].words);
-        next.push({
-          id: `b${idCounter++}`,
-          row,
-          size: merged.length,
-          isRoot: false,
-          words: merged,
-          parents: [current[i].id, current[i + 1].id],
-        });
-      } else {
-        next.push({
-          id: `b${idCounter++}`,
-          row,
-          size: current[i].size,
-          isRoot: false,
-          words: current[i].words,
-          parents: [current[i].id],
-        });
-      }
-    }
+  // ── Merge phase: mirror the split structure back upward in sorted order ──
+  let previousRowBySplitId = new Map<string, BoxData>(current.map((b) => [b.id, b]));
+  for (let splitRowIdx = leafRowIdx - 1; splitRowIdx >= 0; splitRowIdx--) {
+    const splitRow = rows[splitRowIdx];
+    const splitChildren = rows[splitRowIdx + 1];
+    const next: BoxData[] = splitRow.map((splitBox) => {
+      const childBoxes = splitChildren
+        .filter((child) => child.parents.includes(splitBox.id))
+        .map((child) => previousRowBySplitId.get(child.id))
+        .filter((child): child is BoxData => !!child);
+
+      const words =
+        childBoxes.length === 2 ? mergeWords(childBoxes[0].words, childBoxes[1].words) : childBoxes[0].words;
+
+      return {
+        id: `b${idCounter++}`,
+        row,
+        size: words.length,
+        isRoot: false,
+        words,
+        parents: childBoxes.map((child) => child.id),
+      };
+    });
+
     rows.push(next);
+    previousRowBySplitId = new Map(splitRow.map((splitBox, idx) => [splitBox.id, next[idx]]));
     current = next;
     row++;
   }

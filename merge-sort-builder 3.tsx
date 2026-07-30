@@ -104,34 +104,49 @@ function buildTree(words: string[]): { rows: BoxData[][]; leafRowIdx: number } {
   }
   const leafRowIdx = row - 1; // every box in `current` now has size 1
 
-  // ── Merge phase: mirror the split structure back upward in sorted order ──
-  let previousRowBySplitId = new Map<string, BoxData>(current.map((b) => [b.id, b]));
+  // ── Merge phase: build merge rows, skipping trivial size-1 pass-throughs.
+  // A size-1 path needs no new box – the existing leaf/split box is reused as
+  // the representative so that higher-level merge boxes can reference it directly.
+  // This means some merge rows will have fewer boxes than the corresponding
+  // split rows, and connections may span more than one row.
+  let mergeRepById = new Map<string, BoxData>(current.map((b) => [b.id, b]));
   for (let splitRowIdx = leafRowIdx - 1; splitRowIdx >= 0; splitRowIdx--) {
     const splitRow = rows[splitRowIdx];
     const splitChildren = rows[splitRowIdx + 1];
-    const next: BoxData[] = splitRow.map((splitBox) => {
-      const childBoxes = splitChildren
+    const nextMergeRepById = new Map<string, BoxData>();
+    const mergeBoxes: BoxData[] = [];
+
+    splitRow.forEach((splitBox) => {
+      const childReps = splitChildren
         .filter((child) => child.parents.includes(splitBox.id))
-        .map((child) => previousRowBySplitId.get(child.id))
-        .filter((child): child is BoxData => !!child);
+        .map((child) => mergeRepById.get(child.id))
+        .filter((b): b is BoxData => !!b);
 
-      const words =
-        childBoxes.length === 2 ? mergeWords(childBoxes[0].words, childBoxes[1].words) : childBoxes[0].words;
-
-      return {
-        id: `b${idCounter++}`,
-        row,
-        size: words.length,
-        isRoot: false,
-        words,
-        parents: childBoxes.map((child) => child.id),
-      };
+      if (childReps.length === 2) {
+        // Real merge of two inputs – create a new box.
+        const words = mergeWords(childReps[0].words, childReps[1].words);
+        const newBox: BoxData = {
+          id: `b${idCounter++}`,
+          row,
+          size: words.length,
+          isRoot: false,
+          words,
+          parents: childReps.map((b) => b.id),
+        };
+        mergeBoxes.push(newBox);
+        nextMergeRepById.set(splitBox.id, newBox);
+      } else if (childReps.length === 1) {
+        // Trivial size-1 pass-through – reuse the existing representative; no new box.
+        nextMergeRepById.set(splitBox.id, childReps[0]);
+      }
     });
 
-    rows.push(next);
-    previousRowBySplitId = new Map(splitRow.map((splitBox, idx) => [splitBox.id, next[idx]]));
-    current = next;
-    row++;
+    if (mergeBoxes.length > 0) {
+      rows.push(mergeBoxes);
+      row++;
+    }
+    mergeRepById = nextMergeRepById;
+    current = mergeBoxes;
   }
 
   return { rows, leafRowIdx };
@@ -259,7 +274,7 @@ function Slot({
               onRemove();
             }}
             aria-label="Remove word"
-            className="absolute -bottom-1.5 -right-1.5 rounded-full bg-background border border-border p-0.5 text-muted-foreground hover:text-foreground"
+            className="absolute bottom-0.5 right-0.5 rounded-full bg-background border border-border p-0.5 text-muted-foreground hover:text-foreground"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
@@ -353,7 +368,7 @@ export default function MergeSortBuilder({ assignmentId, maxScore, onComplete }:
       const fromBox = boxIndex[fromId];
       const toBox = boxIndex[toId];
       if (!fromBox || !toBox || fromId === toId) return;
-      if (toBox.row !== fromBox.row + 1) return; // must link to the row directly below
+      if (!toBox.parents.includes(fromId)) return; // fromId must be a registered parent of toId
       setConnections((prev) => {
         if (prev.some((c) => c.from === fromId && c.to === toId)) return prev;
         return [...prev, { id: `c-${fromId}-${toId}-${prev.length}`, from: fromId, to: toId }];
@@ -557,7 +572,7 @@ export default function MergeSortBuilder({ assignmentId, maxScore, onComplete }:
                 {rowBoxes.map((box) => {
                   const hasNextRow = box.row < lastRowIdx;
                   const isValidTarget =
-                    !!selectedSource && boxIndex[selectedSource].row + 1 === box.row;
+                    !!selectedSource && box.parents.includes(selectedSource);
 
                   // Top connector node: shows whether this box's incoming
                   // connection(s) are in place / correct

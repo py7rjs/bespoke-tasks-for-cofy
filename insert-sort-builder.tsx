@@ -195,6 +195,7 @@ export default function InsertSortBuilder({ assignmentId, maxScore, onComplete }
     setRows((prev) => [...prev, newRow]);
     setRowCounter((count) => count + 1);
     setSelectedIndices([]);
+    setCheckPerformed(false);
   };
 
   const handleShift = () => {
@@ -217,6 +218,7 @@ export default function InsertSortBuilder({ assignmentId, maxScore, onComplete }
     setRows((prev) => [...prev, newRow]);
     setRowCounter((count) => count + 1);
     setSelectedIndices([]);
+    setCheckPerformed(false);
   };
 
   const handleReturn = () => {
@@ -238,12 +240,14 @@ export default function InsertSortBuilder({ assignmentId, maxScore, onComplete }
     setRows((prev) => [...prev, newRow]);
     setRowCounter((count) => count + 1);
     setSelectedIndices([]);
+    setCheckPerformed(false);
   };
 
   const handleDeleteRow = () => {
     if (rows.length <= 1) return;
     setRows((prev) => prev.slice(0, -1));
     setSelectedIndices([]);
+    setCheckPerformed(false);
   };
 
   const handleSorted = () => {

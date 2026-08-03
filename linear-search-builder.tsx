@@ -238,7 +238,7 @@ export default function LinearSearchBuilder({ assignmentId, maxScore, onComplete
       id: `r${roundIdx}-${rowCounter}`,
       words: [...activeRow.words],
       checkedIndices,
-      currentIndex: nextIndex,
+      currentIndex: null,
       compareResult: null,
       nextIndex: null,
       decision: null,
@@ -385,8 +385,6 @@ export default function LinearSearchBuilder({ assignmentId, maxScore, onComplete
                             ? "border-green-300 bg-green-100 text-green-800 dark:border-green-700 dark:bg-green-950/60 dark:text-green-200"
                             : isCurrent && row.compareResult === "no-match"
                             ? "border-yellow-300 bg-yellow-100 text-yellow-800 dark:border-yellow-700 dark:bg-yellow-950/60 dark:text-yellow-200"
-                            : isNext
-                            ? "border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-950/60 dark:text-blue-200"
                             : isChecked
                             ? "border-purple-300 bg-purple-100 text-purple-800 dark:border-purple-700 dark:bg-purple-950/60 dark:text-purple-200"
                             : "border-border bg-background text-foreground",

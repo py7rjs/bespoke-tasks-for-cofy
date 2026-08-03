@@ -146,16 +146,6 @@ function computeCheckStats(rows: RowState[], round: RoundData): { correctOps: nu
   return { correctOps, totalOps: finalizedRows.length };
 }
 
-function rowHasAnyState(row: RowState): boolean {
-  return (
-    row.checkedIndices.length > 0 ||
-    row.currentIndex !== null ||
-    row.compareResult !== null ||
-    row.nextIndex !== null ||
-    row.decision !== null
-  );
-}
-
 export default function LinearSearchBuilder({ assignmentId, maxScore, onComplete }: BespokeTaskProps) {
   const [rounds] = useState<RoundData[]>(() => buildRounds());
   const [roundIdx, setRoundIdx] = useState(0);
@@ -189,27 +179,13 @@ export default function LinearSearchBuilder({ assignmentId, maxScore, onComplete
     if (activeRow.decision === "found" || activeRow.decision === "not-found") return;
     setCheckPerformed(false);
 
-    updateActiveRow((row) => {
-      if (row.compareResult === null) {
-        return {
-          ...row,
-          currentIndex: row.currentIndex === idx ? null : idx,
-          compareResult: null,
-          nextIndex: null,
-          decision: null,
-        };
-      }
-
-      if (row.compareResult === "no-match") {
-        return {
-          ...row,
-          nextIndex: row.nextIndex === idx ? null : idx,
-          decision: row.decision === "next" ? null : row.decision,
-        };
-      }
-
-      return row;
-    });
+    updateActiveRow((row) => ({
+      ...row,
+      currentIndex: row.currentIndex === idx ? null : idx,
+      compareResult: null,
+      nextIndex: null,
+      decision: null,
+    }));
   };
 
   const handleMatch = () => {
@@ -234,12 +210,6 @@ export default function LinearSearchBuilder({ assignmentId, maxScore, onComplete
     }));
   };
 
-  const handleNextWord = () => {
-    if (activeRow.compareResult !== "no-match" || activeRow.nextIndex === null) return;
-    setCheckPerformed(false);
-    updateActiveRow((row) => ({ ...row, decision: "next" }));
-  };
-
   const handleReturnFound = () => {
     if (activeRow.compareResult !== "match") return;
     setCheckPerformed(false);
@@ -253,15 +223,22 @@ export default function LinearSearchBuilder({ assignmentId, maxScore, onComplete
   };
 
   const handleCarryOn = () => {
-    if (activeRow.decision !== "next" || activeRow.currentIndex === null || activeRow.nextIndex === null) return;
+    if (activeRow.compareResult !== "no-match" || activeRow.currentIndex === null) return;
+    const nextIndex = activeRow.currentIndex + 1;
+    if (nextIndex >= activeRow.words.length) return;
 
     const checkedIndices = [...new Set([...activeRow.checkedIndices, activeRow.currentIndex])];
-    const currentRow: RowState = { ...activeRow, checkedIndices };
+    const currentRow: RowState = {
+      ...activeRow,
+      checkedIndices,
+      nextIndex,
+      decision: "next",
+    };
     const newRow: RowState = {
       id: `r${roundIdx}-${rowCounter}`,
       words: [...activeRow.words],
       checkedIndices,
-      currentIndex: activeRow.nextIndex,
+      currentIndex: nextIndex,
       compareResult: null,
       nextIndex: null,
       decision: null,
@@ -329,7 +306,6 @@ export default function LinearSearchBuilder({ assignmentId, maxScore, onComplete
   const liveCorrect = cumulative.correctOps + liveStats.correctOps;
   const liveExpected = cumulative.expectedOps + currentRoundExpected;
   const checkStats = checkPerformed ? liveStats : null;
-  const canDelete = rows.length > 1 || rowHasAnyState(activeRow);
 
   return (
     <div
@@ -347,8 +323,8 @@ export default function LinearSearchBuilder({ assignmentId, maxScore, onComplete
         <Progress value={(roundIdx / rounds.length) * 100} className="h-2" />
         <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
           Start with the target word, choose a word to compare, then mark it <b>Match</b> or{" "}
-          <b>No Match</b>. If the search should continue, choose the next word, click{" "}
-          <b>Next Word</b>, then <b>Carry On</b> to add the next row. Use <b>Return Found</b> or{" "}
+          <b>No Match</b>. If the search should continue, click <b>Carry On</b> to move to the next word
+          and add the next row. Use <b>Return Found</b> or{" "}
           <b>Return Not Found</b> to finish the search.
         </p>
         <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -457,7 +433,6 @@ export default function LinearSearchBuilder({ assignmentId, maxScore, onComplete
                       variant="outline"
                       size="sm"
                       onClick={handleMatch}
-                      disabled={activeRow.currentIndex === null}
                     >
                       <Check className="mr-1.5 h-3.5 w-3.5" />
                       Match
@@ -467,7 +442,6 @@ export default function LinearSearchBuilder({ assignmentId, maxScore, onComplete
                       variant="outline"
                       size="sm"
                       onClick={handleNoMatch}
-                      disabled={activeRow.currentIndex === null}
                     >
                       <X className="mr-1.5 h-3.5 w-3.5" />
                       No Match
@@ -476,18 +450,7 @@ export default function LinearSearchBuilder({ assignmentId, maxScore, onComplete
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={handleNextWord}
-                      disabled={activeRow.compareResult !== "no-match" || activeRow.nextIndex === null}
-                    >
-                      <ArrowRight className="mr-1.5 h-3.5 w-3.5" />
-                      Next Word
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
                       onClick={handleReturnFound}
-                      disabled={activeRow.compareResult !== "match"}
                     >
                       <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
                       Return Found
@@ -497,7 +460,6 @@ export default function LinearSearchBuilder({ assignmentId, maxScore, onComplete
                       variant="outline"
                       size="sm"
                       onClick={handleReturnNotFound}
-                      disabled={activeRow.compareResult !== "no-match"}
                     >
                       <X className="mr-1.5 h-3.5 w-3.5" />
                       Return Not Found
@@ -507,7 +469,6 @@ export default function LinearSearchBuilder({ assignmentId, maxScore, onComplete
                       variant="outline"
                       size="sm"
                       onClick={handleCarryOn}
-                      disabled={activeRow.decision !== "next"}
                     >
                       <ArrowRight className="mr-1.5 h-3.5 w-3.5" />
                       Carry On
@@ -517,7 +478,6 @@ export default function LinearSearchBuilder({ assignmentId, maxScore, onComplete
                       variant="outline"
                       size="sm"
                       onClick={handleDeleteRow}
-                      disabled={!canDelete}
                     >
                       <Trash2 className="mr-1.5 h-3.5 w-3.5" />
                       Delete Row

@@ -296,7 +296,7 @@ export default function BubbleSortBuilder({ assignmentId, maxScore, onComplete }
                 </span>
 
                 {/* Word cells */}
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 py-2">
                   {row.words.map((word, cellIdx) => {
                     const isFixed = row.fixedIndices.includes(cellIdx);
                     const isSwapped = row.swappedIndices?.includes(cellIdx) ?? false;
@@ -343,7 +343,7 @@ export default function BubbleSortBuilder({ assignmentId, maxScore, onComplete }
                         {cellCorrect !== null && (
                           <span
                             className={cn(
-                              "absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full text-white",
+                              "absolute -top-1.5 -right-1.5 z-10 flex h-4 w-4 items-center justify-center rounded-full text-white",
                               cellCorrect ? "bg-green-500" : "bg-red-500",
                             )}
                           >

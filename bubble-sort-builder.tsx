@@ -342,12 +342,21 @@ export default function BubbleSortBuilder({ assignmentId, maxScore, onComplete }
                           isSelected && "ring-2 ring-primary ring-offset-1",
                         )}
                       >
-                        {word}
+                        <span
+                          className={cn(
+                            "block w-full truncate px-2 text-center",
+                            cellCorrect !== null && "pr-5",
+                          )}
+                        >
+                          {word}
+                        </span>
                         {cellCorrect !== null && (
                           <span
                             className={cn(
-                              "absolute -top-1.5 -right-1.5 z-10 flex h-4 w-4 items-center justify-center rounded-full text-white",
-                              cellCorrect ? "bg-green-500" : "bg-red-500",
+                              "absolute right-1 top-1/2 z-10 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full border bg-background/95 shadow-sm",
+                              cellCorrect
+                                ? "border-green-200 text-green-600 dark:border-green-800 dark:text-green-400"
+                                : "border-red-200 text-red-600 dark:border-red-800 dark:text-red-400",
                             )}
                           >
                             {cellCorrect

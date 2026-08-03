@@ -178,7 +178,6 @@ export default function BubbleSortBuilder({ assignmentId, maxScore, onComplete }
     setRows((prev) => [...prev.slice(0, -1), updatedCurrent, newRow]);
     setRowCounter((c) => c + 1);
     setSelectedIndices([]);
-    setCheckPerformed(false);
   };
 
   const handleFix = () => {
@@ -198,14 +197,12 @@ export default function BubbleSortBuilder({ assignmentId, maxScore, onComplete }
     setRows((prev) => [...prev.slice(0, -1), updatedCurrent, newRow]);
     setRowCounter((c) => c + 1);
     setSelectedIndices([]);
-    setCheckPerformed(false);
   };
 
   const handleDeleteRow = () => {
     if (rows.length <= 1) return;
     setRows((prev) => prev.slice(0, -1));
     setSelectedIndices([]);
-    setCheckPerformed(false);
   };
 
   const handleSorted = () => {
@@ -253,7 +250,13 @@ export default function BubbleSortBuilder({ assignmentId, maxScore, onComplete }
   // ── Render ──────────────────────────────────────────────────────────────
 
   const currentRoundExpected = computeExpectedOps(rounds[roundIdx].initial);
-  const checkStats = checkPerformed ? computeCheckStats(rows) : null;
+
+  // Live running score including the current round's operations so far.
+  const liveStats = computeCheckStats(rows);
+  const liveCorrect = cumulative.correctOps + liveStats.correctOps;
+  const liveExpected = cumulative.expectedOps + currentRoundExpected;
+
+  const checkStats = checkPerformed ? liveStats : null;
 
   return (
     <div
@@ -427,7 +430,7 @@ export default function BubbleSortBuilder({ assignmentId, maxScore, onComplete }
         )}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <span className="text-xs text-muted-foreground">
-            Score: {cumulative.correctOps}/{cumulative.expectedOps} ops
+            Score: {liveCorrect}/{liveExpected} ops
           </span>
           <div className="flex gap-2">
             <Button type="button" variant="outline" size="sm" onClick={handleReset}>

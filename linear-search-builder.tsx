@@ -433,6 +433,7 @@ export default function LinearSearchBuilder({ assignmentId, maxScore, onComplete
                       variant="outline"
                       size="sm"
                       onClick={handleMatch}
+                      disabled={activeRow.currentIndex === null}
                     >
                       <Check className="mr-1.5 h-3.5 w-3.5" />
                       Match
@@ -442,6 +443,7 @@ export default function LinearSearchBuilder({ assignmentId, maxScore, onComplete
                       variant="outline"
                       size="sm"
                       onClick={handleNoMatch}
+                      disabled={activeRow.currentIndex === null}
                     >
                       <X className="mr-1.5 h-3.5 w-3.5" />
                       No Match
@@ -451,6 +453,7 @@ export default function LinearSearchBuilder({ assignmentId, maxScore, onComplete
                       variant="outline"
                       size="sm"
                       onClick={handleReturnFound}
+                      disabled={activeRow.compareResult === null}
                     >
                       <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
                       Return Found
@@ -460,6 +463,7 @@ export default function LinearSearchBuilder({ assignmentId, maxScore, onComplete
                       variant="outline"
                       size="sm"
                       onClick={handleReturnNotFound}
+                      disabled={activeRow.compareResult === null}
                     >
                       <X className="mr-1.5 h-3.5 w-3.5" />
                       Return Not Found
@@ -469,6 +473,7 @@ export default function LinearSearchBuilder({ assignmentId, maxScore, onComplete
                       variant="outline"
                       size="sm"
                       onClick={handleCarryOn}
+                      disabled={activeRow.compareResult === null}
                     >
                       <ArrowRight className="mr-1.5 h-3.5 w-3.5" />
                       Carry On

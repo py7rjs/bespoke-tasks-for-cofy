@@ -527,6 +527,8 @@ export default function MergeSortBuilder({ assignmentId, maxScore, onComplete }:
           {connections.map((c) => {
             const p1 = anchor(c.from, "bottom");
             const p2 = anchor(c.to, "top");
+            const midX = (p1.x + p2.x) / 2;
+            const midY = (p1.y + p2.y) / 2;
             const status = checkResult?.connStatus[c.id];
             const stroke =
               status === true ? "#22c55e" : status === false ? "#ef4444" : "currentColor";
@@ -552,6 +554,19 @@ export default function MergeSortBuilder({ assignmentId, maxScore, onComplete }:
                   markerEnd="url(#msb-arrow)"
                   style={{ pointerEvents: "none" }}
                 />
+                <foreignObject x={midX - 9} y={midY - 9} width={18} height={18}>
+                  <button
+                    type="button"
+                    aria-label="Remove connection"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeConnection(c.id);
+                    }}
+                    className="flex h-[18px] w-[18px] items-center justify-center rounded-full border border-border bg-background p-0.5 text-muted-foreground shadow-sm hover:text-foreground"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </foreignObject>
               </g>
             );
           })}

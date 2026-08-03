@@ -518,7 +518,7 @@ export default function MergeSortBuilder({ assignmentId, maxScore, onComplete }:
           }
         }}
       >
-        <svg className="absolute inset-0 z-20 h-full w-full">
+        <svg className="pointer-events-none absolute inset-0 z-20 h-full w-full">
           <defs>
             <marker id="msb-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
               <path d="M0,0 L6,3 L0,6 Z" className="fill-current text-muted-foreground" />
@@ -642,11 +642,18 @@ export default function MergeSortBuilder({ assignmentId, maxScore, onComplete }:
                   return (
                     <div key={box.id} className="relative flex flex-col items-center">
                       {box.row > 0 && (
-                        <div
+                        <button
+                          type="button"
+                          aria-label="Connect to this box"
                           className={cn(
                             "-mb-1 h-3.5 w-3.5 shrink-0 rounded-full border-2 bg-background",
-                            topNodeColor
+                            topNodeColor,
+                            selectedSource && "cursor-pointer"
                           )}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleBoxClick(box);
+                          }}
                         />
                       )}
                       <div

@@ -345,7 +345,6 @@ export default function BubbleSortBuilder({ assignmentId, maxScore, onComplete }
                         <span
                           className={cn(
                             "block w-full truncate px-2 text-center",
-                            cellCorrect !== null && "pr-5",
                           )}
                         >
                           {word}
@@ -353,15 +352,15 @@ export default function BubbleSortBuilder({ assignmentId, maxScore, onComplete }
                         {cellCorrect !== null && (
                           <span
                             className={cn(
-                              "absolute right-1 top-1/2 z-10 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full border bg-background/95 shadow-sm",
+                              "absolute right-0 top-0 z-10 flex h-4 w-4 items-center justify-center",
                               cellCorrect
-                                ? "border-green-200 text-green-600 dark:border-green-800 dark:text-green-400"
-                                : "border-red-200 text-red-600 dark:border-red-800 dark:text-red-400",
+                                ? "text-green-600 dark:text-green-400"
+                                : "text-red-600 dark:text-red-400",
                             )}
                           >
                             {cellCorrect
-                              ? <Check className="h-2.5 w-2.5" />
-                              : <X className="h-2.5 w-2.5" />}
+                              ? <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                              : <X className="h-3.5 w-3.5" strokeWidth={3} />}
                           </span>
                         )}
                       </div>

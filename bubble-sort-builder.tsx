@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, RefreshCw, Send, ArrowLeftRight, Lock, Trash2, Check } from "lucide-react";
+import { CheckCircle2, RefreshCw, Send, ArrowLeftRight, Lock, Trash2, Check, X } from "lucide-react";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Content: 40 fruits, each 10 characters or fewer
@@ -50,10 +50,6 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-function isAlphabeticallySorted(words: string[]): boolean {
-  return words.every((w, i) => i === 0 || words[i - 1] <= w);
-}
-
 function buildRound(index: number): RoundData {
   const n = 5 + Math.floor(Math.random() * 2); // 5 or 6 elements
   return { index, initial: shuffle(FRUITS).slice(0, n) };
@@ -67,6 +63,55 @@ function makeInitialRow(round: RoundData): RowState {
     swappedIndices: null,
     isSorted: false,
   };
+}
+
+/** Number of inversions = minimum swaps needed to sort (bubble sort optimal). */
+function countInversions(words: string[]): number {
+  let count = 0;
+  for (let i = 0; i < words.length; i++) {
+    for (let j = i + 1; j < words.length; j++) {
+      if (words[i] > words[j]) count++;
+    }
+  }
+  return count;
+}
+
+/** Expected operations for a round: inversions (swaps) + array length (fixes). */
+function computeExpectedOps(initial: string[]): number {
+  return countInversions(initial) + initial.length;
+}
+
+/**
+ * Evaluate all rows and count correct vs total operations.
+ * A swap is correct when the cell at the lower index ends up ≤ the cell at the higher index.
+ * A fix is correct when the element occupies its correct position in the sorted array.
+ * Only newly-added fixed indices (not inherited from the previous row) are counted.
+ */
+function computeCheckStats(rows: RowState[]): { correctOps: number; totalOps: number } {
+  let correctOps = 0;
+  let totalOps = 0;
+
+  rows.forEach((row, rowIndex) => {
+    if (row.swappedIndices) {
+      const [i, j] = row.swappedIndices;
+      const lo = Math.min(i, j);
+      const hi = Math.max(i, j);
+      if (row.words[lo] <= row.words[hi]) correctOps++;
+      totalOps++;
+    }
+
+    const prevFixed = rowIndex > 0 ? rows[rowIndex - 1].fixedIndices : [];
+    const newlyFixed = row.fixedIndices.filter((p) => !prevFixed.includes(p));
+    if (newlyFixed.length > 0) {
+      const sortedWords = [...row.words].sort((a, b) => a.localeCompare(b));
+      newlyFixed.forEach((p) => {
+        if (sortedWords[p] === row.words[p]) correctOps++;
+        totalOps++;
+      });
+    }
+  });
+
+  return { correctOps, totalOps };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -84,8 +129,8 @@ export default function BubbleSortBuilder({ assignmentId, maxScore, onComplete }
   const [rowCounter, setRowCounter] = useState(1);
   // Up to two selected cell indices in the active (last) row.
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
-  const [checkResult, setCheckResult] = useState<boolean | null>(null);
-  const [cumulative, setCumulative] = useState({ correct: 0, total: 0 });
+  const [checkPerformed, setCheckPerformed] = useState(false);
+  const [cumulative, setCumulative] = useState({ correctOps: 0, expectedOps: 0 });
 
   const startTimeRef = useRef<number>(Date.now());
 
@@ -93,7 +138,7 @@ export default function BubbleSortBuilder({ assignmentId, maxScore, onComplete }
   useEffect(() => {
     setRows([makeInitialRow(rounds[roundIdx])]);
     setSelectedIndices([]);
-    setCheckResult(null);
+    setCheckPerformed(false);
     setRowCounter(1);
   }, [roundIdx, rounds]);
 
@@ -133,7 +178,7 @@ export default function BubbleSortBuilder({ assignmentId, maxScore, onComplete }
     setRows((prev) => [...prev.slice(0, -1), updatedCurrent, newRow]);
     setRowCounter((c) => c + 1);
     setSelectedIndices([]);
-    setCheckResult(null);
+    setCheckPerformed(false);
   };
 
   const handleFix = () => {
@@ -153,14 +198,14 @@ export default function BubbleSortBuilder({ assignmentId, maxScore, onComplete }
     setRows((prev) => [...prev.slice(0, -1), updatedCurrent, newRow]);
     setRowCounter((c) => c + 1);
     setSelectedIndices([]);
-    setCheckResult(null);
+    setCheckPerformed(false);
   };
 
   const handleDeleteRow = () => {
     if (rows.length <= 1) return;
     setRows((prev) => prev.slice(0, -1));
     setSelectedIndices([]);
-    setCheckResult(null);
+    setCheckPerformed(false);
   };
 
   const handleSorted = () => {
@@ -175,27 +220,28 @@ export default function BubbleSortBuilder({ assignmentId, maxScore, onComplete }
   // ── Bottom bar ──────────────────────────────────────────────────────────
 
   const handleCheck = () => {
-    setCheckResult(isAlphabeticallySorted(activeRow.words));
+    setCheckPerformed(true);
   };
 
   const handleReset = () => {
     setRows([makeInitialRow(rounds[roundIdx])]);
     setSelectedIndices([]);
-    setCheckResult(null);
+    setCheckPerformed(false);
     setRowCounter(1);
   };
 
   const handleSubmit = () => {
-    const correct = isAlphabeticallySorted(activeRow.words);
+    const { correctOps } = computeCheckStats(rows);
+    const roundExpected = computeExpectedOps(rounds[roundIdx].initial);
     const newCumulative = {
-      correct: cumulative.correct + (correct ? 1 : 0),
-      total: cumulative.total + 1,
+      correctOps: cumulative.correctOps + correctOps,
+      expectedOps: cumulative.expectedOps + roundExpected,
     };
     setCumulative(newCumulative);
 
     if (isLastRound) {
-      const score = newCumulative.total > 0
-        ? Math.round((newCumulative.correct / newCumulative.total) * maxScore)
+      const score = newCumulative.expectedOps > 0
+        ? Math.round((newCumulative.correctOps / newCumulative.expectedOps) * maxScore)
         : 0;
       const timeTakenSeconds = Math.round((Date.now() - startTimeRef.current) / 1000);
       onComplete({ score: Math.max(0, Math.min(maxScore, score)), timeTakenSeconds });
@@ -206,6 +252,9 @@ export default function BubbleSortBuilder({ assignmentId, maxScore, onComplete }
 
   // ── Render ──────────────────────────────────────────────────────────────
 
+  const currentRoundExpected = computeExpectedOps(rounds[roundIdx].initial);
+  const checkStats = checkPerformed ? computeCheckStats(rows) : null;
+
   return (
     <div
       className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 sm:p-6 text-foreground"
@@ -215,7 +264,10 @@ export default function BubbleSortBuilder({ assignmentId, maxScore, onComplete }
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-base sm:text-lg font-semibold">Bubble Sort Builder</h2>
-          <Badge variant="secondary">Round {roundIdx + 1} of {rounds.length}</Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs">Max: {currentRoundExpected}</Badge>
+            <Badge variant="secondary">Round {roundIdx + 1} of {rounds.length}</Badge>
+          </div>
         </div>
         <Progress value={(roundIdx / rounds.length) * 100} className="h-2" />
         <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
@@ -251,12 +303,30 @@ export default function BubbleSortBuilder({ assignmentId, maxScore, onComplete }
                     const isSelected =
                       isActive && !row.isSorted && selectedIndices.includes(cellIdx);
 
+                    // Determine if this cell should show a tick/cross badge.
+                    const prevRow = rowIndex > 0 ? rows[rowIndex - 1] : null;
+                    const newlyFixed = prevRow
+                      ? row.fixedIndices.filter((p) => !prevRow.fixedIndices.includes(p))
+                      : row.fixedIndices;
+                    const isNewlyFixed = newlyFixed.includes(cellIdx);
+
+                    let cellCorrect: boolean | null = null;
+                    if (checkPerformed) {
+                      if (isSwapped && row.swappedIndices) {
+                        const [si, sj] = row.swappedIndices;
+                        cellCorrect = row.words[Math.min(si, sj)] <= row.words[Math.max(si, sj)];
+                      } else if (isNewlyFixed) {
+                        const sortedWords = [...row.words].sort((a, b) => a.localeCompare(b));
+                        cellCorrect = sortedWords[cellIdx] === row.words[cellIdx];
+                      }
+                    }
+
                     return (
                       <div
                         key={cellIdx}
                         onClick={() => isActive && handleCellClick(cellIdx)}
                         className={cn(
-                          "flex h-9 w-[76px] shrink-0 select-none items-center justify-center rounded-md border text-[11px] sm:text-xs font-medium transition-all",
+                          "relative flex h-9 w-[76px] shrink-0 select-none items-center justify-center rounded-md border text-[11px] sm:text-xs font-medium transition-all",
                           isActive && !row.isSorted
                             ? "cursor-pointer hover:opacity-75"
                             : "cursor-default",
@@ -270,6 +340,18 @@ export default function BubbleSortBuilder({ assignmentId, maxScore, onComplete }
                         )}
                       >
                         {word}
+                        {cellCorrect !== null && (
+                          <span
+                            className={cn(
+                              "absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full text-white",
+                              cellCorrect ? "bg-green-500" : "bg-red-500",
+                            )}
+                          >
+                            {cellCorrect
+                              ? <Check className="h-2.5 w-2.5" />
+                              : <X className="h-2.5 w-2.5" />}
+                          </span>
+                        )}
                       </div>
                     );
                   })}
@@ -327,23 +409,25 @@ export default function BubbleSortBuilder({ assignmentId, maxScore, onComplete }
 
       {/* Bottom controls */}
       <div className="flex flex-col gap-3">
-        {checkResult !== null && (
+        {checkStats !== null && (
           <p
             className={cn(
               "text-xs sm:text-sm font-medium",
-              checkResult
+              checkStats.correctOps === checkStats.totalOps && checkStats.totalOps > 0
                 ? "text-green-600 dark:text-green-400"
-                : "text-red-600 dark:text-red-400",
+                : checkStats.totalOps === 0
+                ? "text-muted-foreground"
+                : "text-yellow-600 dark:text-yellow-400",
             )}
           >
-            {checkResult
-              ? "✓ Correct! The array is in alphabetical order."
-              : "✗ Not quite — the array is not fully sorted yet."}
+            {checkStats.totalOps === 0
+              ? "No swaps or fixes to check yet."
+              : `${checkStats.correctOps}/${checkStats.totalOps} operations correct`}
           </p>
         )}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <span className="text-xs text-muted-foreground">
-            Rounds correct: {cumulative.correct}/{cumulative.total}
+            Score: {cumulative.correctOps}/{cumulative.expectedOps} ops
           </span>
           <div className="flex gap-2">
             <Button type="button" variant="outline" size="sm" onClick={handleReset}>

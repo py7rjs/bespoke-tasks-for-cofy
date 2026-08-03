@@ -275,7 +275,7 @@ function Slot({
     >
       {value ? (
         <>
-          <span className="truncate px-1">{value}</span>
+          <span className="block w-full truncate px-1 pr-6 text-center">{value}</span>
           {status === true && (
             <CheckCircle2 className="absolute -left-1.5 -top-1.5 h-3.5 w-3.5 rounded-full bg-background text-green-500" />
           )}
@@ -289,7 +289,7 @@ function Slot({
               onRemove();
             }}
             aria-label="Remove word"
-            className="absolute bottom-0.5 right-0.5 rounded-full bg-background border border-border p-0.5 text-muted-foreground hover:text-foreground"
+            className="absolute bottom-0 right-0 m-0.5 rounded-full border border-border bg-background p-0.5 text-muted-foreground hover:text-foreground"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>

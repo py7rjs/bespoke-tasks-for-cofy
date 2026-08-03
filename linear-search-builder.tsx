@@ -131,6 +131,7 @@ function computeExpectedOps(round: RoundData): number {
   return linearSearchSteps(round).length;
 }
 
+// Returns marks: 1 for correct word, 1 for correct match/no-match, 1 for correct decision (max 3 per row)
 function computeCheckStats(rows: RowState[], round: RoundData): { correctOps: number; totalOps: number } {
   const expectedSteps = linearSearchSteps(round);
   const finalizedRows = rows.filter(isFinalizedRow);
@@ -138,12 +139,13 @@ function computeCheckStats(rows: RowState[], round: RoundData): { correctOps: nu
 
   finalizedRows.forEach((row, stepIndex) => {
     const expected = expectedSteps[stepIndex];
-    if (expected && rowMatchesStep(row, expected)) {
-      correctOps++;
-    }
+    if (!expected) return;
+    if (row.currentIndex === expected.comparedIndex) correctOps++;
+    if (row.compareResult === expected.compareResult) correctOps++;
+    if (row.decision === expected.decision) correctOps++;
   });
 
-  return { correctOps, totalOps: finalizedRows.length };
+  return { correctOps, totalOps: finalizedRows.length * 3 };
 }
 
 export default function LinearSearchBuilder({ assignmentId, maxScore, onComplete }: BespokeTaskProps) {
@@ -283,7 +285,7 @@ export default function LinearSearchBuilder({ assignmentId, maxScore, onComplete
 
   const handleSubmit = () => {
     const { correctOps } = computeCheckStats(rows, round);
-    const roundExpected = computeExpectedOps(round);
+    const roundExpected = computeExpectedOps(round) * 3;
     const newCumulative = {
       correctOps: cumulative.correctOps + correctOps,
       expectedOps: cumulative.expectedOps + roundExpected,
@@ -301,7 +303,7 @@ export default function LinearSearchBuilder({ assignmentId, maxScore, onComplete
     }
   };
 
-  const currentRoundExpected = computeExpectedOps(round);
+  const currentRoundExpected = computeExpectedOps(round) * 3;
   const liveStats = computeCheckStats(rows, round);
   const liveCorrect = cumulative.correctOps + liveStats.correctOps;
   const liveExpected = cumulative.expectedOps + currentRoundExpected;
@@ -316,7 +318,7 @@ export default function LinearSearchBuilder({ assignmentId, maxScore, onComplete
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-base sm:text-lg font-semibold">Linear Search Builder</h2>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs">Max: {currentRoundExpected}</Badge>
+            <Badge variant="outline" className="text-xs">Max: {currentRoundExpected} marks</Badge>
             <Badge variant="secondary">Round {roundIdx + 1} of {rounds.length}</Badge>
           </div>
         </div>
@@ -507,12 +509,12 @@ export default function LinearSearchBuilder({ assignmentId, maxScore, onComplete
           >
             {checkStats.totalOps === 0
               ? "No completed search steps to check yet."
-              : `${checkStats.correctOps}/${checkStats.totalOps} steps correct`}
+              : `${checkStats.correctOps}/${checkStats.totalOps} marks`}
           </p>
         )}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <span className="text-xs text-muted-foreground">
-            Score: {liveCorrect}/{liveExpected} steps
+            Score: {liveCorrect}/{liveExpected} marks
           </span>
           <div className="flex gap-2">
             <Button type="button" variant="outline" size="sm" onClick={handleReset}>

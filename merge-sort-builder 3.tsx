@@ -383,7 +383,6 @@ export default function MergeSortBuilder({ assignmentId, maxScore, onComplete }:
       const fromBox = boxIndex[fromId];
       const toBox = boxIndex[toId];
       if (!fromBox || !toBox || fromId === toId) return;
-      if (!toBox.parents.includes(fromId)) return; // fromId must be a registered parent of toId
       setConnections((prev) => {
         if (prev.some((c) => c.from === fromId && c.to === toId)) return prev;
         return [...prev, { id: `c-${fromId}-${toId}-${prev.length}`, from: fromId, to: toId }];
@@ -518,7 +517,7 @@ export default function MergeSortBuilder({ assignmentId, maxScore, onComplete }:
           }
         }}
       >
-        <svg className="absolute inset-0 z-20 h-full w-full">
+        <svg className="absolute inset-0 z-20 h-full w-full" style={{ pointerEvents: "none" }}>
           <defs>
             <marker id="msb-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
               <path d="M0,0 L6,3 L0,6 Z" className="fill-current text-muted-foreground" />
@@ -618,7 +617,7 @@ export default function MergeSortBuilder({ assignmentId, maxScore, onComplete }:
 
                 const hasNextRow = box.row < lastRowIdx;
                 const isValidTarget =
-                  !!selectedSource && box.parents.includes(selectedSource);
+                  !!selectedSource && selectedSource !== box.id;
 
                   // Top connector node: shows whether this box's incoming
                   // connection(s) are in place / correct

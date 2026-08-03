@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, RefreshCw, Send, ArrowLeftRight, Lock, Trash2, Check, X } from "lucide-react";
+import { CheckCircle2, RefreshCw, Send, Trash2, Check, X, Copy, ArrowRight, CornerUpLeft } from "lucide-react";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Content: 40 fruits, each 10 characters or fewer
@@ -28,10 +28,14 @@ const ROUND_COUNT = 5;
 interface RowState {
   id: string;
   words: string[];
-  /** Indices that currently belong to the sorted prefix (shown purple). */
-  fixedIndices: number[];
-  /** Indices affected by the most recent insertion move (shown yellow). */
-  movedIndices: number[] | null;
+  /** Temporary value currently copied out of the array. */
+  heldWord: string | null;
+  /** Original index of the temporary copied value. */
+  heldFrom: number | null;
+  /** Action represented by this row. */
+  actionType: "copy" | "shift" | "return" | null;
+  /** Indices affected by the most recent action (shown yellow). */
+  affectedIndices: number[] | null;
   /** True once the student marks this row as fully sorted. */
   isSorted: boolean;
 }
@@ -59,77 +63,79 @@ function makeInitialRow(round: RoundData): RowState {
   return {
     id: `r${round.index}-0`,
     words: [...round.initial],
-    fixedIndices: [],
-    movedIndices: null,
+    heldWord: null,
+    heldFrom: null,
+    actionType: null,
+    affectedIndices: null,
     isSorted: false,
   };
 }
 
-function insertionSortPasses(words: string[]): string[][] {
-  const allPasses: string[][] = [[...words]];
+interface ExpectedActionState {
+  words: string[];
+  heldWord: string | null;
+  heldFrom: number | null;
+  actionType: "copy" | "shift" | "return";
+}
+
+function insertionSortActionStates(words: string[]): ExpectedActionState[] {
+  const allStates: ExpectedActionState[] = [];
   const current = [...words];
 
   for (let i = 1; i < current.length; i++) {
     const key = current[i];
+    allStates.push({
+      words: [...current],
+      heldWord: key,
+      heldFrom: i,
+      actionType: "copy",
+    });
+
     let j = i - 1;
 
     while (j >= 0 && current[j] > key) {
       current[j + 1] = current[j];
+      allStates.push({
+        words: [...current],
+        heldWord: key,
+        heldFrom: i,
+        actionType: "shift",
+      });
       j--;
     }
 
     current[j + 1] = key;
-    allPasses.push([...current]);
+    allStates.push({
+      words: [...current],
+      heldWord: null,
+      heldFrom: null,
+      actionType: "return",
+    });
   }
 
-  return allPasses;
+  return allStates;
 }
 
-function moveWord(words: string[], sourceIdx: number, targetIdx: number): string[] {
-  if (sourceIdx === targetIdx) return [...words];
-
-  const next = [...words];
-  const [movedWord] = next.splice(sourceIdx, 1);
-  next.splice(targetIdx, 0, movedWord);
-  return next;
-}
-
-function getMovedIndices(sourceIdx: number, targetIdx: number): number[] {
-  const start = Math.min(sourceIdx, targetIdx);
-  const end = Math.max(sourceIdx, targetIdx);
-  return Array.from({ length: end - start + 1 }, (_, offset) => start + offset);
-}
-
-/** Expected operations for a round: insertion passes + one prefix fix per index. */
+/** Expected operations for a round: copy + shifts + return for each insertion pass. */
 function computeExpectedOps(initial: string[]): number {
-  const insertionPassCount = Math.max(0, initial.length - 1);
-  return insertionPassCount + initial.length;
+  return insertionSortActionStates(initial).length;
 }
 
 function computeCheckStats(rows: RowState[], initial: string[]): { correctOps: number; totalOps: number } {
-  const expectedPasses = insertionSortPasses(initial);
+  const expectedStates = insertionSortActionStates(initial);
   let correctOps = 0;
   let totalOps = 0;
-  let completedPasses = 0;
+  const actualActionRows = rows.filter((row) => row.actionType !== null);
 
-  rows.forEach((row, rowIndex) => {
-    if (row.movedIndices) {
-      const nextPass = Math.min(completedPasses + 1, expectedPasses.length - 1);
-      const expectedWords = expectedPasses[nextPass];
-      const matchesPass = expectedWords.every((word, idx) => row.words[idx] === word);
-
-      if (matchesPass) correctOps++;
-      totalOps++;
-      completedPasses = nextPass;
+  actualActionRows.forEach((row, actionIndex) => {
+    const expected = expectedStates[actionIndex];
+    totalOps++;
+    if (!expected) return;
+    const wordsMatch = expected.words.every((word, idx) => row.words[idx] === word);
+    const heldMatch = row.heldWord === expected.heldWord && row.heldFrom === expected.heldFrom;
+    if (row.actionType === expected.actionType && wordsMatch && heldMatch) {
+      correctOps++;
     }
-
-    const prevFixed = rowIndex > 0 ? rows[rowIndex - 1].fixedIndices : [];
-    const newlyFixed = row.fixedIndices.filter((idx) => !prevFixed.includes(idx));
-
-    newlyFixed.forEach((idx) => {
-      if (idx <= completedPasses) correctOps++;
-      totalOps++;
-    });
   });
 
   return { correctOps, totalOps };
@@ -162,56 +168,74 @@ export default function InsertSortBuilder({ assignmentId, maxScore, onComplete }
 
   const activeRow = rows[rows.length - 1];
   const isLastRound = roundIdx === rounds.length - 1;
-  const expectedPasses = insertionSortPasses(rounds[roundIdx].initial);
+  const expectedActionStates = insertionSortActionStates(rounds[roundIdx].initial);
 
   const handleCellClick = (idx: number) => {
     if (activeRow.isSorted) return;
     setSelectedIndices((prev) => {
-      if (prev.includes(idx)) return prev.filter((value) => value !== idx);
-      if (prev.length >= 2) return [prev[1], idx];
-      return [...prev, idx];
+      if (prev[0] === idx) return [];
+      return [idx];
     });
   };
 
-  const handleInsert = () => {
-    if (selectedIndices.length !== 2) return;
-
-    const [sourceIdx, targetIdx] = selectedIndices as [number, number];
-    const newWords = moveWord(activeRow.words, sourceIdx, targetIdx);
-    const movedIndices = getMovedIndices(sourceIdx, targetIdx);
-
-    const updatedCurrent: RowState = {
-      ...activeRow,
-      words: newWords,
-      movedIndices,
-    };
+  const handleCopy = () => {
+    if (selectedIndices.length !== 1) return;
+    const sourceIdx = selectedIndices[0];
+    const heldWord = activeRow.words[sourceIdx];
     const newRow: RowState = {
       id: `r${roundIdx}-${rowCounter}`,
-      words: newWords,
-      fixedIndices: [...activeRow.fixedIndices],
-      movedIndices: null,
+      words: [...activeRow.words],
+      heldWord,
+      heldFrom: sourceIdx,
+      actionType: "copy",
+      affectedIndices: [sourceIdx],
       isSorted: false,
     };
 
-    setRows((prev) => [...prev.slice(0, -1), updatedCurrent, newRow]);
+    setRows((prev) => [...prev, newRow]);
     setRowCounter((count) => count + 1);
     setSelectedIndices([]);
   };
 
-  const handleFix = () => {
-    if (selectedIndices.length === 0) return;
+  const handleShift = () => {
+    if (selectedIndices.length !== 1) return;
+    const sourceIdx = selectedIndices[0];
+    if (sourceIdx >= activeRow.words.length - 1) return;
 
-    const newFixed = [...new Set([...activeRow.fixedIndices, ...selectedIndices])].sort((a, b) => a - b);
-    const updatedCurrent: RowState = { ...activeRow, fixedIndices: newFixed };
+    const newWords = [...activeRow.words];
+    newWords[sourceIdx + 1] = activeRow.words[sourceIdx];
     const newRow: RowState = {
       id: `r${roundIdx}-${rowCounter}`,
-      words: [...activeRow.words],
-      fixedIndices: newFixed,
-      movedIndices: null,
+      words: newWords,
+      heldWord: activeRow.heldWord,
+      heldFrom: activeRow.heldFrom,
+      actionType: "shift",
+      affectedIndices: [sourceIdx, sourceIdx + 1],
       isSorted: false,
     };
 
-    setRows((prev) => [...prev.slice(0, -1), updatedCurrent, newRow]);
+    setRows((prev) => [...prev, newRow]);
+    setRowCounter((count) => count + 1);
+    setSelectedIndices([]);
+  };
+
+  const handleReturn = () => {
+    if (selectedIndices.length !== 1 || !activeRow.heldWord) return;
+    const targetIdx = selectedIndices[0];
+    const newWords = [...activeRow.words];
+    newWords[targetIdx] = activeRow.heldWord;
+
+    const newRow: RowState = {
+      id: `r${roundIdx}-${rowCounter}`,
+      words: newWords,
+      heldWord: null,
+      heldFrom: null,
+      actionType: "return",
+      affectedIndices: [targetIdx],
+      isSorted: false,
+    };
+
+    setRows((prev) => [...prev, newRow]);
     setRowCounter((count) => count + 1);
     setSelectedIndices([]);
   };
@@ -283,10 +307,10 @@ export default function InsertSortBuilder({ assignmentId, maxScore, onComplete }
         </div>
         <Progress value={(roundIdx / rounds.length) * 100} className="h-2" />
         <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-          Sort the fruits alphabetically using insertion sort. Click the word you want to move,
-          then click its target position so you can <b>Insert</b> it into the sorted prefix.
-          Use <b>Fix</b> to mark the sorted prefix (purple), <b>Delete Row</b> to undo the last
-          step, and <b>Sorted</b> when the array is complete.
+          Sort the fruits alphabetically using insertion sort operations only: <b>Copy</b> the key
+          into temporary storage, <b>Shift</b> larger items one step right, then <b>Return</b> the
+          copied key into its final spot. Use <b>Delete Row</b> to undo the last step and
+          <b> Sorted</b> when the array is complete.
         </p>
       </div>
 
@@ -294,9 +318,6 @@ export default function InsertSortBuilder({ assignmentId, maxScore, onComplete }
         <div className="flex flex-col items-center gap-5">
           {rows.map((row, rowIndex) => {
             const isActive = rowIndex === rows.length - 1;
-            const passNumber = rows
-              .slice(0, rowIndex + 1)
-              .filter((candidate) => candidate.movedIndices !== null).length;
 
             return (
               <div key={row.id} className="flex flex-col items-center gap-2">
@@ -310,24 +331,17 @@ export default function InsertSortBuilder({ assignmentId, maxScore, onComplete }
 
                 <div className="flex items-center gap-1 py-2">
                   {row.words.map((word, cellIdx) => {
-                    const isFixed = row.fixedIndices.includes(cellIdx);
-                    const isMoved = row.movedIndices?.includes(cellIdx) ?? false;
+                    const isAffected = row.affectedIndices?.includes(cellIdx) ?? false;
                     const isSelected =
                       isActive && !row.isSorted && selectedIndices.includes(cellIdx);
 
-                    const prevRow = rowIndex > 0 ? rows[rowIndex - 1] : null;
-                    const newlyFixed = prevRow
-                      ? row.fixedIndices.filter((idx) => !prevRow.fixedIndices.includes(idx))
-                      : row.fixedIndices;
-                    const isNewlyFixed = newlyFixed.includes(cellIdx);
-
                     let cellCorrect: boolean | null = null;
                     if (checkPerformed) {
-                      if (isMoved) {
-                        const expectedWords = expectedPasses[Math.min(passNumber, expectedPasses.length - 1)];
-                        cellCorrect = expectedWords?.[cellIdx] === row.words[cellIdx];
-                      } else if (isNewlyFixed) {
-                        cellCorrect = cellIdx <= passNumber;
+                      const actionRows = rows.slice(0, rowIndex + 1).filter((candidate) => candidate.actionType !== null);
+                      const actionIndex = actionRows.length - 1;
+                      const expectedState = actionIndex >= 0 ? expectedActionStates[actionIndex] : null;
+                      if (row.actionType && expectedState && isAffected) {
+                        cellCorrect = expectedState.words[cellIdx] === row.words[cellIdx];
                       }
                     }
 
@@ -340,9 +354,7 @@ export default function InsertSortBuilder({ assignmentId, maxScore, onComplete }
                           isActive && !row.isSorted
                             ? "cursor-pointer hover:opacity-75"
                             : "cursor-default",
-                          isFixed
-                            ? "border-purple-300 bg-purple-100 text-purple-800 dark:border-purple-700 dark:bg-purple-950/60 dark:text-purple-200"
-                            : isMoved
+                          isAffected
                             ? "border-yellow-300 bg-yellow-100 text-yellow-800 dark:border-yellow-700 dark:bg-yellow-950/60 dark:text-yellow-200"
                             : "border-border bg-background text-foreground",
                           isSelected && "ring-2 ring-primary ring-offset-1",
@@ -367,6 +379,24 @@ export default function InsertSortBuilder({ assignmentId, maxScore, onComplete }
                     );
                   })}
                 </div>
+                <div className="flex items-center gap-1 -mt-1 pb-1">
+                  {row.words.map((_, cellIdx) => {
+                    const isHoldingAtCell = row.heldFrom === cellIdx && row.heldWord !== null;
+                    return (
+                      <div
+                        key={`temp-${row.id}-${cellIdx}`}
+                        className={cn(
+                          "flex h-8 w-[76px] shrink-0 items-center justify-center rounded-md border border-dashed text-[11px] sm:text-xs",
+                          isHoldingAtCell
+                            ? "border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-950/60 dark:text-blue-200"
+                            : "border-transparent text-transparent",
+                        )}
+                      >
+                        {isHoldingAtCell ? row.heldWord : "·"}
+                      </div>
+                    );
+                  })}
+                </div>
 
                 {isActive && !row.isSorted && (
                   <div className="flex flex-wrap justify-center gap-2 pt-1">
@@ -374,21 +404,31 @@ export default function InsertSortBuilder({ assignmentId, maxScore, onComplete }
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={handleInsert}
-                      disabled={selectedIndices.length !== 2}
+                      onClick={handleCopy}
+                      disabled={selectedIndices.length !== 1}
                     >
-                      <ArrowLeftRight className="mr-1.5 h-3.5 w-3.5" />
-                      Insert
+                      <Copy className="mr-1.5 h-3.5 w-3.5" />
+                      Copy
                     </Button>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={handleFix}
-                      disabled={selectedIndices.length === 0}
+                      onClick={handleShift}
+                      disabled={selectedIndices.length !== 1 || selectedIndices[0] >= activeRow.words.length - 1}
                     >
-                      <Lock className="mr-1.5 h-3.5 w-3.5" />
-                      Fix
+                      <ArrowRight className="mr-1.5 h-3.5 w-3.5" />
+                      Shift
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleReturn}
+                      disabled={selectedIndices.length !== 1 || !activeRow.heldWord}
+                    >
+                      <CornerUpLeft className="mr-1.5 h-3.5 w-3.5" />
+                      Return
                     </Button>
                     <Button
                       type="button"
@@ -430,7 +470,7 @@ export default function InsertSortBuilder({ assignmentId, maxScore, onComplete }
             )}
           >
             {checkStats.totalOps === 0
-              ? "No inserts or fixes to check yet."
+            ? "No copy/shift/return actions to check yet."
               : `${checkStats.correctOps}/${checkStats.totalOps} operations correct`}
           </p>
         )}

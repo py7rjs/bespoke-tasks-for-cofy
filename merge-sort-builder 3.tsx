@@ -33,6 +33,7 @@ interface BoxData {
   isRoot: boolean; // the single given box at the very top (the unsorted starting array)
   words: string[]; // the correct contents of this box, in order
   parents: string[]; // ids of the box(es) directly above that feed into this box
+  hidden?: boolean; // reserved layout space only (no visible/interactable box)
 }
 
 interface RoundData {
@@ -104,17 +105,16 @@ function buildTree(words: string[]): { rows: BoxData[][]; leafRowIdx: number } {
   }
   const leafRowIdx = row - 1; // every box in `current` now has size 1
 
-  // ── Merge phase: build merge rows, skipping trivial size-1 pass-throughs.
-  // A size-1 path needs no new box – the existing leaf/split box is reused as
-  // the representative so that higher-level merge boxes can reference it directly.
-  // This means some merge rows will have fewer boxes than the corresponding
-  // split rows, and connections may span more than one row.
+  // ── Merge phase: build merge rows while hiding trivial size-1 pass-throughs.
+  // The pass-through representative is still reused internally so higher-level
+  // merges can reference it, but we insert hidden placeholders to preserve
+  // horizontal alignment in the displayed merge rows.
   let mergeRepById = new Map<string, BoxData>(current.map((b) => [b.id, b]));
   for (let splitRowIdx = leafRowIdx - 1; splitRowIdx >= 0; splitRowIdx--) {
     const splitRow = rows[splitRowIdx];
     const splitChildren = rows[splitRowIdx + 1];
     const nextMergeRepById = new Map<string, BoxData>();
-    const mergeBoxes: BoxData[] = [];
+    const mergeRowBoxes: BoxData[] = [];
 
     splitRow.forEach((splitBox) => {
       const childReps = splitChildren
@@ -133,20 +133,30 @@ function buildTree(words: string[]): { rows: BoxData[][]; leafRowIdx: number } {
           words,
           parents: childReps.map((b) => b.id),
         };
-        mergeBoxes.push(newBox);
+        mergeRowBoxes.push(newBox);
         nextMergeRepById.set(splitBox.id, newBox);
       } else if (childReps.length === 1) {
         // Trivial size-1 pass-through – reuse the existing representative; no new box.
         nextMergeRepById.set(splitBox.id, childReps[0]);
+        if (childReps[0].size === 1) {
+          mergeRowBoxes.push({
+            id: `b${idCounter++}`,
+            row,
+            size: 1,
+            isRoot: false,
+            words: [],
+            parents: [],
+            hidden: true,
+          });
+        }
       }
     });
 
-    if (mergeBoxes.length > 0) {
-      rows.push(mergeBoxes);
+    if (mergeRowBoxes.length > 0) {
+      rows.push(mergeRowBoxes);
       row++;
     }
     mergeRepById = nextMergeRepById;
-    current = mergeBoxes;
   }
 
   return { rows, leafRowIdx };
@@ -160,6 +170,7 @@ function buildRound(index: number): RoundData {
   let totalConnections = 0;
   rows.slice(1).forEach((r) =>
     r.forEach((b) => {
+      if (b.hidden) return;
       totalWordSlots += b.size;
       totalConnections += b.parents.length;
     })
@@ -182,6 +193,7 @@ function evaluateWords(round: RoundData, placements: Placements) {
   const status: Record<string, boolean[]> = {};
   round.rows.slice(1).forEach((r) =>
     r.forEach((b) => {
+      if (b.hidden) return;
       const placed = placements[b.id] ?? Array(b.size).fill(null);
       status[b.id] = b.words.map((w, i) => placed[i] === w);
     })
@@ -192,7 +204,10 @@ function evaluateWords(round: RoundData, placements: Placements) {
 function evaluateConnections(round: RoundData, connections: Connection[]) {
   const validEdges = new Set<string>();
   round.rows.slice(1).forEach((r) =>
-    r.forEach((b) => b.parents.forEach((p) => validEdges.add(`${p}->${b.id}`)))
+    r.forEach((b) => {
+      if (b.hidden) return;
+      b.parents.forEach((p) => validEdges.add(`${p}->${b.id}`));
+    })
   );
   const status: Record<string, boolean> = {};
   connections.forEach((c) => {
@@ -575,9 +590,14 @@ export default function MergeSortBuilder({ assignmentId, maxScore, onComplete }:
               </span>
               <div className="flex items-end gap-4">
                 {rowBoxes.map((box) => {
-                  const hasNextRow = box.row < lastRowIdx;
-                  const isValidTarget =
-                    !!selectedSource && box.parents.includes(selectedSource);
+                if (box.hidden) {
+                  const width = box.size * SLOT_W + (box.size - 1) * 4 + 12;
+                  return <div key={box.id} aria-hidden className="h-11 shrink-0" style={{ width }} />;
+                }
+
+                const hasNextRow = box.row < lastRowIdx;
+                const isValidTarget =
+                  !!selectedSource && box.parents.includes(selectedSource);
 
                   // Top connector node: shows whether this box's incoming
                   // connection(s) are in place / correct

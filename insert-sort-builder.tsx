@@ -172,6 +172,7 @@ export default function InsertSortBuilder({ assignmentId, maxScore, onComplete }
 
   const handleCellClick = (idx: number) => {
     if (activeRow.isSorted) return;
+    setCheckPerformed(false);
     setSelectedIndices((prev) => {
       if (prev[0] === idx) return [];
       return [idx];
@@ -257,6 +258,7 @@ export default function InsertSortBuilder({ assignmentId, maxScore, onComplete }
       return updated;
     });
     setSelectedIndices([]);
+    setCheckPerformed(false);
   };
 
   const handleCheck = () => {

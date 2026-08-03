@@ -518,7 +518,7 @@ export default function MergeSortBuilder({ assignmentId, maxScore, onComplete }:
           }
         }}
       >
-        <svg className="absolute inset-0 h-full w-full">
+        <svg className="absolute inset-0 z-20 h-full w-full">
           <defs>
             <marker id="msb-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
               <path d="M0,0 L6,3 L0,6 Z" className="fill-current text-muted-foreground" />
@@ -554,7 +554,13 @@ export default function MergeSortBuilder({ assignmentId, maxScore, onComplete }:
                   markerEnd="url(#msb-arrow)"
                   style={{ pointerEvents: "none" }}
                 />
-                <foreignObject x={midX - 9} y={midY - 9} width={18} height={18}>
+                <foreignObject
+                  x={midX - 9}
+                  y={midY - 9}
+                  width={18}
+                  height={18}
+                  style={{ pointerEvents: "auto" }}
+                >
                   <button
                     type="button"
                     aria-label="Remove connection"
@@ -589,7 +595,7 @@ export default function MergeSortBuilder({ assignmentId, maxScore, onComplete }:
             })()}
         </svg>
 
-        <div className="relative flex flex-col items-center gap-10">
+        <div className="relative z-10 flex flex-col items-center gap-10">
           {round.rows.map((rowBoxes, rIdx) => (
             <div key={rIdx} className="flex flex-col items-center gap-1">
               <span className="text-[10px] uppercase tracking-wide text-muted-foreground">

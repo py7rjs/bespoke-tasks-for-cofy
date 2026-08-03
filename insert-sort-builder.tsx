@@ -100,10 +100,10 @@ function getMovedIndices(sourceIdx: number, targetIdx: number): number[] {
   return Array.from({ length: end - start + 1 }, (_, offset) => start + offset);
 }
 
-/** Expected operations for a round: insertion passes + sorted-prefix fixes after each pass. */
+/** Expected operations for a round: insertion passes + one prefix fix per index. */
 function computeExpectedOps(initial: string[]): number {
   const insertionPassCount = Math.max(0, initial.length - 1);
-  return insertionPassCount * 2;
+  return insertionPassCount + initial.length;
 }
 
 function computeCheckStats(rows: RowState[], initial: string[]): { correctOps: number; totalOps: number } {

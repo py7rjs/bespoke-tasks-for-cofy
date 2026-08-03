@@ -383,7 +383,7 @@ export default function MergeSortBuilder({ assignmentId, maxScore, onComplete }:
       const fromBox = boxIndex[fromId];
       const toBox = boxIndex[toId];
       if (!fromBox || !toBox || fromId === toId) return;
-      if (!toBox.parents.includes(fromId)) return; // fromId must be a registered parent of toId
+      if (fromBox.row === toBox.row) return;
       setConnections((prev) => {
         if (prev.some((c) => c.from === fromId && c.to === toId)) return prev;
         return [...prev, { id: `c-${fromId}-${toId}-${prev.length}`, from: fromId, to: toId }];
@@ -502,8 +502,9 @@ export default function MergeSortBuilder({ assignmentId, maxScore, onComplete }:
           many times as it appears going down the tree). Then connect each box to the box(es)
           below it: drag from the small dot under a box down to the dot on top of the next box,
           <em> or</em> click a box to select it and click the target box to link them (click the
-          selected box again to cancel). Click a wrong connection line, or the trash icon on a word, to
-          remove it and try again.
+          selected box again to cancel). You can draw any connection between boxes above or below
+          each other; wrong lines will be marked when you check. Click a wrong connection line, or
+          the trash icon on a word, to remove it and try again.
         </p>
       </div>
 
@@ -618,22 +619,29 @@ export default function MergeSortBuilder({ assignmentId, maxScore, onComplete }:
 
                 const hasNextRow = box.row < lastRowIdx;
                 const isValidTarget =
-                  !!selectedSource && box.parents.includes(selectedSource);
+                  !!selectedSource &&
+                  selectedSource !== box.id &&
+                  boxIndex[selectedSource]?.row !== box.row;
 
                   // Top connector node: shows whether this box's incoming
                   // connection(s) are in place / correct
-                  const incomingConns = box.parents.map((p) =>
-                    connections.find((c) => c.from === p && c.to === box.id)
-                  );
+                  const incomingConns = connections.filter((c) => c.to === box.id);
                   const incomingStatuses = incomingConns.map((c) =>
                     c ? checkResult?.connStatus[c.id] : undefined
                   );
+                  const hasAllExpectedIncoming =
+                    box.parents.length > 0 &&
+                    box.parents.every((p) => incomingConns.some((c) => c.from === p));
                   const topNodeColor =
-                    checkResult && box.parents.length > 0
-                      ? incomingStatuses.every((s) => s === true)
-                        ? "border-green-500 bg-green-500"
-                        : incomingStatuses.some((s) => s === false)
+                    checkResult
+                      ? incomingStatuses.some((s) => s === false)
                         ? "border-red-500 bg-red-500"
+                        : hasAllExpectedIncoming &&
+                          incomingConns.length === box.parents.length &&
+                          incomingStatuses.every((s) => s === true)
+                        ? "border-green-500 bg-green-500"
+                        : incomingConns.some(Boolean)
+                        ? "border-primary bg-primary/70"
                         : "border-muted-foreground/50"
                       : incomingConns.some(Boolean)
                       ? "border-primary bg-primary/70"

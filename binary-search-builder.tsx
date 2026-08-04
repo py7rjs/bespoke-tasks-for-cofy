@@ -561,7 +561,7 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
                             variant="outline"
                             size="sm"
                             onClick={handleReturnNotFound}
-                            disabled={!notFoundEnabled}
+                            disabled={activeRow.decision !== null}
                           >
                             <X className="mr-1.5 h-3.5 w-3.5" />
                             Return Not Found
@@ -610,7 +610,7 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
                             variant="outline"
                             size="sm"
                             onClick={handleReturnFound}
-                            disabled={activeRow.midIndex === null || activeRow.decision !== null}
+                            disabled={activeRow.compareResult === null || activeRow.decision !== null}
                           >
                             <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
                             Return Found
@@ -620,7 +620,7 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
                             variant="outline"
                             size="sm"
                             onClick={handleReturnNotFound}
-                            disabled={!notFoundEnabled}
+                            disabled={activeRow.compareResult === null || activeRow.decision !== null}
                           >
                             <X className="mr-1.5 h-3.5 w-3.5" />
                             Return Not Found
@@ -630,11 +630,7 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
                             variant="outline"
                             size="sm"
                             onClick={handleDiscardMidLeft}
-                            disabled={
-                              activeRow.compareResult !== "greater-than" ||
-                              activeRow.decision !== null ||
-                              discardLeftWouldBeEmpty
-                            }
+                            disabled={activeRow.compareResult === null || activeRow.decision !== null}
                           >
                             <ChevronRight className="mr-1.5 h-3.5 w-3.5" />
                             Discard Mid &amp; Left
@@ -644,11 +640,7 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
                             variant="outline"
                             size="sm"
                             onClick={handleDiscardMidRight}
-                            disabled={
-                              activeRow.compareResult !== "less-than" ||
-                              activeRow.decision !== null ||
-                              discardRightWouldBeEmpty
-                            }
+                            disabled={activeRow.compareResult === null || activeRow.decision !== null}
                           >
                             <ChevronLeft className="mr-1.5 h-3.5 w-3.5" />
                             Discard Mid &amp; Right

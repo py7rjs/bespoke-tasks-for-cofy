@@ -269,7 +269,7 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
   };
 
   const handleReturnFound = () => {
-    if (activeRow.compareResult !== "match") return;
+    if (activeRow.midIndex === null || activeRow.decision !== null) return;
     setCheckPerformed(false);
     updateActiveRow((row) => ({ ...row, decision: "found" }));
   };
@@ -610,7 +610,7 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
                             variant="outline"
                             size="sm"
                             onClick={handleReturnFound}
-                            disabled={activeRow.compareResult !== "match" || activeRow.decision !== null}
+                            disabled={activeRow.midIndex === null || activeRow.decision !== null}
                           >
                             <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
                             Return Found

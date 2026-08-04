@@ -549,7 +549,7 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
                         variant="outline"
                         size="sm"
                         onClick={handleReturnNotFound}
-                        disabled={activeRow.compareResult === null}
+                        disabled={activeRow.compareResult !== "less-than" && activeRow.compareResult !== "greater-than"}
                       >
                         <X className="mr-1.5 h-3.5 w-3.5" />
                         Return Not Found

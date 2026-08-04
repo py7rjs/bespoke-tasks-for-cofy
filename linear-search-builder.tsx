@@ -16,7 +16,7 @@ const ANIMALS: string[] = [
 ];
 
 const ROUND_COUNT = 5;
-const WORD_COUNT_OPTIONS = [7, 8, 9];
+const WORD_COUNT = 8;
 
 type CompareResult = "match" | "no-match";
 type Decision = "next" | "found" | "not-found";
@@ -55,8 +55,7 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 function buildRound(index: number, isPresent: boolean): RoundData {
-  const wordCount = WORD_COUNT_OPTIONS[Math.floor(Math.random() * WORD_COUNT_OPTIONS.length)];
-  const words = shuffle(ANIMALS).slice(0, wordCount);
+  const words = shuffle(ANIMALS).slice(0, WORD_COUNT);
   const target = isPresent
     ? words[Math.floor(Math.random() * words.length)]
     : shuffle(ANIMALS.filter((animal) => !words.includes(animal)))[0];

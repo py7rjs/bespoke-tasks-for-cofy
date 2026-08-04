@@ -55,7 +55,7 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 function buildRound(index: number): RoundData {
-  const n = 7 + Math.floor(Math.random() * 3); // 7, 8, or 9 elements
+  const n = 5 + Math.floor(Math.random() * 2); // 5 or 6 elements
   return { index, initial: shuffle(FRUITS).slice(0, n) };
 }
 

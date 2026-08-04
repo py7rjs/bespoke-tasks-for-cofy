@@ -253,7 +253,8 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
   };
 
   const handleReturnNotFound = () => {
-    if (activeRow.compareResult === null) return;
+    // Allow not-found on an empty window (lo > hi) even without a compareResult
+    if (activeRow.compareResult === null && activeRow.lo <= activeRow.hi) return;
     setCheckPerformed(false);
     updateActiveRow((row) => ({ ...row, decision: "not-found" }));
   };
@@ -262,9 +263,9 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
   const handleDiscardMidLeft = () => {
     if (activeRow.compareResult !== "greater-than" || activeRow.midIndex === null) return;
     const nextLo = activeRow.midIndex + 1;
-    if (nextLo > activeRow.hi) return;
 
     const currentRow: RowState = { ...activeRow, decision: "discard-mid-left" };
+    // If the resulting window is empty (nextLo > hi), show it as a collapsed window
     const newRow: RowState = {
       id: `r${roundIdx}-${rowCounter}`,
       words: [...activeRow.words],
@@ -284,9 +285,9 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
   const handleDiscardMidRight = () => {
     if (activeRow.compareResult !== "less-than" || activeRow.midIndex === null) return;
     const nextHi = activeRow.midIndex - 1;
-    if (nextHi < activeRow.lo) return;
 
     const currentRow: RowState = { ...activeRow, decision: "discard-mid-right" };
+    // If the resulting window is empty (nextHi < lo), show it as a collapsed window
     const newRow: RowState = {
       id: `r${roundIdx}-${rowCounter}`,
       words: [...activeRow.words],
@@ -398,7 +399,11 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
                   <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
                     Step {rowIndex + 1}
                   </span>
-                  {!isActive && (
+                  {row.lo > row.hi ? (
+                    <span className="text-[10px] text-orange-500 dark:text-orange-400 font-medium">
+                      Empty window (lo={row.lo} &gt; hi={row.hi})
+                    </span>
+                  ) : !isActive && (
                     <span className="text-[10px] text-muted-foreground">
                       Window: [{row.lo}–{row.hi}]
                     </span>
@@ -499,82 +504,105 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
                 {/* Action buttons — only on active row */}
                 {isActive && (
                   <div className="flex flex-col gap-2 pt-1 w-full max-w-xl">
-                    {/* Compare buttons */}
-                    <div className="flex flex-wrap justify-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleMatch}
-                        disabled={activeRow.midIndex === null || activeRow.decision !== null}
-                      >
-                        <Check className="mr-1.5 h-3.5 w-3.5" />
-                        Match
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleLessThan}
-                        disabled={activeRow.midIndex === null || activeRow.decision !== null}
-                      >
-                        <ChevronLeft className="mr-1.5 h-3.5 w-3.5" />
-                        Target &lt; Mid
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleGreaterThan}
-                        disabled={activeRow.midIndex === null || activeRow.decision !== null}
-                      >
-                        <ChevronRight className="mr-1.5 h-3.5 w-3.5" />
-                        Target &gt; Mid
-                      </Button>
-                    </div>
-                    {/* Decision buttons */}
-                    <div className="flex flex-wrap justify-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleReturnFound}
-                        disabled={activeRow.compareResult === null || activeRow.decision !== null}
-                      >
-                        <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
-                        Return Found
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleReturnNotFound}
-                        disabled={activeRow.compareResult === null || activeRow.decision !== null}
-                      >
-                        <X className="mr-1.5 h-3.5 w-3.5" />
-                        Return Not Found
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleDiscardMidLeft}
-                        disabled={activeRow.compareResult === null || activeRow.decision !== null}
-                      >
-                        <ChevronRight className="mr-1.5 h-3.5 w-3.5" />
-                        Discard Mid &amp; Left
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleDiscardMidRight}
-                        disabled={activeRow.compareResult === null || activeRow.decision !== null}
-                      >
-                        <ChevronLeft className="mr-1.5 h-3.5 w-3.5" />
-                        Discard Mid &amp; Right
-                      </Button>
-                    </div>
+                    {activeRow.lo > activeRow.hi ? (
+                      /* Empty window — only "Return Not Found" makes sense */
+                      <>
+                        <p className="text-center text-xs text-muted-foreground">
+                          Search window is empty (lo &gt; hi).
+                        </p>
+                        <div className="flex flex-wrap justify-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleReturnNotFound}
+                            disabled={activeRow.decision !== null}
+                          >
+                            <X className="mr-1.5 h-3.5 w-3.5" />
+                            Return Not Found
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {/* Compare buttons */}
+                        <div className="flex flex-wrap justify-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleMatch}
+                            disabled={activeRow.midIndex === null || activeRow.decision !== null}
+                          >
+                            <Check className="mr-1.5 h-3.5 w-3.5" />
+                            Match
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleLessThan}
+                            disabled={activeRow.midIndex === null || activeRow.decision !== null}
+                          >
+                            <ChevronLeft className="mr-1.5 h-3.5 w-3.5" />
+                            Target &lt; Mid
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleGreaterThan}
+                            disabled={activeRow.midIndex === null || activeRow.decision !== null}
+                          >
+                            <ChevronRight className="mr-1.5 h-3.5 w-3.5" />
+                            Target &gt; Mid
+                          </Button>
+                        </div>
+                        {/* Decision buttons */}
+                        <div className="flex flex-wrap justify-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleReturnFound}
+                            disabled={activeRow.compareResult === null || activeRow.decision !== null}
+                          >
+                            <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                            Return Found
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleReturnNotFound}
+                            disabled={activeRow.compareResult === null || activeRow.decision !== null}
+                          >
+                            <X className="mr-1.5 h-3.5 w-3.5" />
+                            Return Not Found
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleDiscardMidLeft}
+                            disabled={activeRow.compareResult === null || activeRow.decision !== null}
+                          >
+                            <ChevronRight className="mr-1.5 h-3.5 w-3.5" />
+                            Discard Mid &amp; Left
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleDiscardMidRight}
+                            disabled={activeRow.compareResult === null || activeRow.decision !== null}
+                          >
+                            <ChevronLeft className="mr-1.5 h-3.5 w-3.5" />
+                            Discard Mid &amp; Right
+                          </Button>
+                        </div>
+                      </>
+                    )}
                     {/* Utility buttons */}
                     <div className="flex flex-wrap justify-center gap-2">
                       <Button

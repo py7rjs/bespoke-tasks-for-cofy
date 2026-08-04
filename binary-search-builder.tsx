@@ -383,6 +383,18 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
   const liveExpected = cumulative.expectedOps + currentRoundExpected;
   const checkStats = checkPerformed ? liveStats : null;
 
+  // Derived button-state helpers for the active row
+  const discardLeftWouldBeEmpty =
+    activeRow.midIndex !== null && activeRow.midIndex + 1 > activeRow.hi;
+  const discardRightWouldBeEmpty =
+    activeRow.midIndex !== null && activeRow.midIndex - 1 < activeRow.lo;
+  const notFoundEnabled =
+    activeRow.decision === null && (
+      activeRow.lo > activeRow.hi ||
+      (activeRow.compareResult === "greater-than" && discardLeftWouldBeEmpty) ||
+      (activeRow.compareResult === "less-than" && discardRightWouldBeEmpty)
+    );
+
   return (
     <div
       className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 sm:p-6 text-foreground"
@@ -549,7 +561,7 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
                             variant="outline"
                             size="sm"
                             onClick={handleReturnNotFound}
-                            disabled={activeRow.decision !== null}
+                            disabled={!notFoundEnabled}
                           >
                             <X className="mr-1.5 h-3.5 w-3.5" />
                             Return Not Found
@@ -598,7 +610,7 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
                             variant="outline"
                             size="sm"
                             onClick={handleReturnFound}
-                            disabled={activeRow.compareResult === null || activeRow.decision !== null}
+                            disabled={activeRow.compareResult !== "match" || activeRow.decision !== null}
                           >
                             <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
                             Return Found
@@ -608,7 +620,7 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
                             variant="outline"
                             size="sm"
                             onClick={handleReturnNotFound}
-                            disabled={activeRow.compareResult === null || activeRow.decision !== null}
+                            disabled={!notFoundEnabled}
                           >
                             <X className="mr-1.5 h-3.5 w-3.5" />
                             Return Not Found
@@ -618,7 +630,11 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
                             variant="outline"
                             size="sm"
                             onClick={handleDiscardMidLeft}
-                            disabled={activeRow.compareResult === null || activeRow.decision !== null}
+                            disabled={
+                              activeRow.compareResult !== "greater-than" ||
+                              activeRow.decision !== null ||
+                              discardLeftWouldBeEmpty
+                            }
                           >
                             <ChevronRight className="mr-1.5 h-3.5 w-3.5" />
                             Discard Mid &amp; Left
@@ -628,7 +644,11 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
                             variant="outline"
                             size="sm"
                             onClick={handleDiscardMidRight}
-                            disabled={activeRow.compareResult === null || activeRow.decision !== null}
+                            disabled={
+                              activeRow.compareResult !== "less-than" ||
+                              activeRow.decision !== null ||
+                              discardRightWouldBeEmpty
+                            }
                           >
                             <ChevronLeft className="mr-1.5 h-3.5 w-3.5" />
                             Discard Mid &amp; Right

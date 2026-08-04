@@ -506,7 +506,7 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
                         variant="outline"
                         size="sm"
                         onClick={handleMatch}
-                        disabled={activeRow.midIndex === null}
+                        disabled={activeRow.midIndex === null || activeRow.decision !== null}
                       >
                         <Check className="mr-1.5 h-3.5 w-3.5" />
                         Match
@@ -516,7 +516,7 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
                         variant="outline"
                         size="sm"
                         onClick={handleLessThan}
-                        disabled={activeRow.midIndex === null}
+                        disabled={activeRow.midIndex === null || activeRow.decision !== null}
                       >
                         <ChevronLeft className="mr-1.5 h-3.5 w-3.5" />
                         Target &lt; Mid
@@ -526,7 +526,7 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
                         variant="outline"
                         size="sm"
                         onClick={handleGreaterThan}
-                        disabled={activeRow.midIndex === null}
+                        disabled={activeRow.midIndex === null || activeRow.decision !== null}
                       >
                         <ChevronRight className="mr-1.5 h-3.5 w-3.5" />
                         Target &gt; Mid
@@ -539,7 +539,7 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
                         variant="outline"
                         size="sm"
                         onClick={handleReturnFound}
-                        disabled={activeRow.compareResult !== "match"}
+                        disabled={activeRow.compareResult === null || activeRow.decision !== null}
                       >
                         <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
                         Return Found
@@ -549,7 +549,7 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
                         variant="outline"
                         size="sm"
                         onClick={handleReturnNotFound}
-                        disabled={activeRow.compareResult === null}
+                        disabled={activeRow.compareResult === null || activeRow.decision !== null}
                       >
                         <X className="mr-1.5 h-3.5 w-3.5" />
                         Return Not Found
@@ -559,7 +559,7 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
                         variant="outline"
                         size="sm"
                         onClick={handleDiscardMidLeft}
-                        disabled={activeRow.compareResult !== "greater-than"}
+                        disabled={activeRow.compareResult === null || activeRow.decision !== null}
                       >
                         <ChevronRight className="mr-1.5 h-3.5 w-3.5" />
                         Discard Mid &amp; Left
@@ -569,7 +569,7 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
                         variant="outline"
                         size="sm"
                         onClick={handleDiscardMidRight}
-                        disabled={activeRow.compareResult !== "less-than"}
+                        disabled={activeRow.compareResult === null || activeRow.decision !== null}
                       >
                         <ChevronLeft className="mr-1.5 h-3.5 w-3.5" />
                         Discard Mid &amp; Right

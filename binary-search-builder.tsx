@@ -121,26 +121,48 @@ function binarySearchSteps(round: RoundData): ExpectedStep[] {
       return steps;
     } else if (cmp < 0) {
       // target < mid → discard mid and right, search left half
+      const nextHi = mid - 1;
+      if (nextHi < lo) {
+        // Discarding would produce an empty window — return not-found immediately
+        steps.push({
+          lo, hi, midIndex: mid,
+          compareResult: "less-than",
+          decision: "not-found",
+          nextLo: null, nextHi: null,
+        });
+        return steps;
+      }
       steps.push({
         lo, hi, midIndex: mid,
         compareResult: "less-than",
         decision: "discard-mid-right",
-        nextLo: lo, nextHi: mid - 1,
+        nextLo: lo, nextHi: nextHi,
       });
-      hi = mid - 1;
+      hi = nextHi;
     } else {
       // target > mid → discard mid and left, search right half
+      const nextLo = mid + 1;
+      if (nextLo > hi) {
+        // Discarding would produce an empty window — return not-found immediately
+        steps.push({
+          lo, hi, midIndex: mid,
+          compareResult: "greater-than",
+          decision: "not-found",
+          nextLo: null, nextHi: null,
+        });
+        return steps;
+      }
       steps.push({
         lo, hi, midIndex: mid,
         compareResult: "greater-than",
         decision: "discard-mid-left",
-        nextLo: mid + 1, nextHi: hi,
+        nextLo: nextLo, nextHi: hi,
       });
-      lo = mid + 1;
+      lo = nextLo;
     }
   }
 
-  // lo > hi → not found
+  // lo > hi → not found (window started empty, should not normally occur)
   steps.push({
     lo, hi, midIndex: -1,
     compareResult: "less-than", // dummy — window is empty
@@ -247,7 +269,7 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
   };
 
   const handleReturnFound = () => {
-    if (activeRow.compareResult !== "match") return;
+    if (activeRow.midIndex === null || activeRow.decision !== null) return;
     setCheckPerformed(false);
     updateActiveRow((row) => ({ ...row, decision: "found" }));
   };
@@ -255,6 +277,15 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
   const handleReturnNotFound = () => {
     // Allow not-found on an empty window (lo > hi) even without a compareResult
     if (activeRow.compareResult === null && activeRow.lo <= activeRow.hi) return;
+    // Also block if compareResult is set but discarding would NOT produce an empty window
+    if (activeRow.compareResult === "less-than" && activeRow.midIndex !== null) {
+      const nextHi = activeRow.midIndex - 1;
+      if (nextHi >= activeRow.lo) return; // discard would leave items — use discard instead
+    }
+    if (activeRow.compareResult === "greater-than" && activeRow.midIndex !== null) {
+      const nextLo = activeRow.midIndex + 1;
+      if (nextLo <= activeRow.hi) return; // discard would leave items — use discard instead
+    }
     setCheckPerformed(false);
     updateActiveRow((row) => ({ ...row, decision: "not-found" }));
   };
@@ -263,9 +294,10 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
   const handleDiscardMidLeft = () => {
     if (activeRow.compareResult !== "greater-than" || activeRow.midIndex === null) return;
     const nextLo = activeRow.midIndex + 1;
+    // If the resulting window would be empty, use Return Not Found instead
+    if (nextLo > activeRow.hi) return;
 
     const currentRow: RowState = { ...activeRow, decision: "discard-mid-left" };
-    // If the resulting window is empty (nextLo > hi), show it as a collapsed window
     const newRow: RowState = {
       id: `r${roundIdx}-${rowCounter}`,
       words: [...activeRow.words],
@@ -285,9 +317,10 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
   const handleDiscardMidRight = () => {
     if (activeRow.compareResult !== "less-than" || activeRow.midIndex === null) return;
     const nextHi = activeRow.midIndex - 1;
+    // If the resulting window would be empty, use Return Not Found instead
+    if (nextHi < activeRow.lo) return;
 
     const currentRow: RowState = { ...activeRow, decision: "discard-mid-right" };
-    // If the resulting window is empty (nextHi < lo), show it as a collapsed window
     const newRow: RowState = {
       id: `r${roundIdx}-${rowCounter}`,
       words: [...activeRow.words],
@@ -349,6 +382,18 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
   const liveCorrect = cumulative.correctOps + liveStats.correctOps;
   const liveExpected = cumulative.expectedOps + currentRoundExpected;
   const checkStats = checkPerformed ? liveStats : null;
+
+  // Derived button-state helpers for the active row
+  const discardLeftWouldBeEmpty =
+    activeRow.midIndex !== null && activeRow.midIndex + 1 > activeRow.hi;
+  const discardRightWouldBeEmpty =
+    activeRow.midIndex !== null && activeRow.midIndex - 1 < activeRow.lo;
+  const notFoundEnabled =
+    activeRow.decision === null && (
+      activeRow.lo > activeRow.hi ||
+      (activeRow.compareResult === "greater-than" && discardLeftWouldBeEmpty) ||
+      (activeRow.compareResult === "less-than" && discardRightWouldBeEmpty)
+    );
 
   return (
     <div
@@ -516,7 +561,7 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
                             variant="outline"
                             size="sm"
                             onClick={handleReturnNotFound}
-                            disabled={activeRow.decision !== null}
+                            disabled={!notFoundEnabled}
                           >
                             <X className="mr-1.5 h-3.5 w-3.5" />
                             Return Not Found
@@ -565,7 +610,7 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
                             variant="outline"
                             size="sm"
                             onClick={handleReturnFound}
-                            disabled={activeRow.compareResult === null || activeRow.decision !== null}
+                            disabled={activeRow.midIndex === null || activeRow.decision !== null}
                           >
                             <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
                             Return Found
@@ -575,7 +620,7 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
                             variant="outline"
                             size="sm"
                             onClick={handleReturnNotFound}
-                            disabled={activeRow.compareResult === null || activeRow.decision !== null}
+                            disabled={!notFoundEnabled}
                           >
                             <X className="mr-1.5 h-3.5 w-3.5" />
                             Return Not Found
@@ -585,7 +630,11 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
                             variant="outline"
                             size="sm"
                             onClick={handleDiscardMidLeft}
-                            disabled={activeRow.compareResult === null || activeRow.decision !== null}
+                            disabled={
+                              activeRow.compareResult !== "greater-than" ||
+                              activeRow.decision !== null ||
+                              discardLeftWouldBeEmpty
+                            }
                           >
                             <ChevronRight className="mr-1.5 h-3.5 w-3.5" />
                             Discard Mid &amp; Left
@@ -595,7 +644,11 @@ export default function BinarySearchBuilder({ assignmentId, maxScore, onComplete
                             variant="outline"
                             size="sm"
                             onClick={handleDiscardMidRight}
-                            disabled={activeRow.compareResult === null || activeRow.decision !== null}
+                            disabled={
+                              activeRow.compareResult !== "less-than" ||
+                              activeRow.decision !== null ||
+                              discardRightWouldBeEmpty
+                            }
                           >
                             <ChevronLeft className="mr-1.5 h-3.5 w-3.5" />
                             Discard Mid &amp; Right
